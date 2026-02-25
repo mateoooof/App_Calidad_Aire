@@ -1,0 +1,18 @@
+Package: bogotAIR.app
+Type: Package
+Title: Aplicación de Monitoreo de Aire Bogotá
+Version: 0.1.0
+Author: Mateo Franco <anfrancor@unal.edu.co> , Natalia Lopez
+Maintainer: Mateo Franco <anfrancor@unal.edu.co>
+Description: Dashboard para la visualización y análisis de datos 
+    de calidad del aire en Bogotá utilizando el paquete bogotAIR.
+License: MIT
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    shiny,
+    openair,
+    devtools,
+    bogotAIR
+Remotes: 
+    quishqa/bogotAIR
