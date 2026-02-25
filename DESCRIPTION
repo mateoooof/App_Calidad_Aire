@@ -13,6 +13,7 @@ Imports:
     shiny,
     openair,
     devtools,
-    bogotAIR
+    bogotAIR,
+    bslib
 Remotes: 
     quishqa/bogotAIR
