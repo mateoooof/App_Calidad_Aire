@@ -10,6 +10,7 @@ source("Scripts/data_download_processing.R")
 source("Scripts/plots.R")
 source("Paginas/time_variation.R")
 source("Paginas/rose_pollution.R")
+source("Paginas/cor_plot.R")
 
 # Dataset de Estaciones (Coordenadas aproximadas RMCAB)
 estaciones_bog <- data.frame(

@@ -14,8 +14,8 @@ ui_time_variation <- nav_panel_hidden(
       selectInput("pollutant", "Contaminante:", 
                   choices = c("pm10", "pm2.5", "o3", "no2")),
       hr(),
-      actionButton("volver_inicio", "Volver al Menú", 
-                   icon = bs_icon("arrow-left"), class = "btn-link")
+      actionButton("volver_inicio", "Volver al Menú",class="btn-outline-success", 
+                   icon = bs_icon("arrow-left"))
     ),
     card(
       card_header("Resultado"),
