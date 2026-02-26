@@ -4,7 +4,7 @@ ui_rose_pollution <- nav_panel_hidden(
   layout_sidebar(
     sidebar = sidebar(
       title = "Rosa de Contaminantes",
-      bg = "#FFF3E0", # Un color pastel diferente (naranja suave)
+      bg = "#C6EAF7", 
       dateRangeInput("dates_rose", "Rango de fechas:", 
                      start = Sys.Date() - 7, end = Sys.Date()),
       selectInput("station_rose", "Estación:", choices = rmcab_aqs$aqs),

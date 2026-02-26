@@ -6,6 +6,7 @@ source("Scripts/data_download_processing.R")
 source("Scripts/plots.R")
 source("Paginas/time_variation.R")
 source("Paginas/rose_pollution.R")
+source("Paginas/cor_plot.R")
 
 # Tema profesional con tonos pasteles
 my_theme <- bs_theme(
@@ -13,7 +14,7 @@ my_theme <- bs_theme(
   bootswatch = "minty",
   primary = "#98FB98",  
   secondary = "#87CEEB", 
-  base_font = font_google("Inter"),
+  base_font = font_google("Manrope"),
   heading_font = font_google("Montserrat")
 )
 
@@ -35,10 +36,11 @@ ui <- page_fillable(
     # --- PÁGINA 1: INICIO ---
     nav_panel_hidden("inicio",
                      layout_column_wrap(
+                       fill = FALSE,
                        width = 1,
-                       style = "max-width: 1000px; margin: 0 auto; padding: 40px;",
+                       style = "max-width: 1000px; margin: 0 auto; padding:20px 40px;",
                        
-                       div(class = "text-center mb-5",
+                       div(class = "text-center mb-2",
                            h1("Sobre la aplicación", style = "color: #2E8B57;"),
                            p("Esta plataforma integra datos en tiempo real de las estaciones 
                              de monitoreo distribuidas estratégicamente por toda Bogotá y la 
@@ -48,41 +50,54 @@ ui <- page_fillable(
                              de modelos atmosféricos y herramientas analíticas avanzadas, 
                              transformamos datos brutos en información clave para entender el
                              comportamiento del aire en nuestra ciudad.", 
-                             style = "font-size: 1.2rem; color: #666; text-align: justify; font-weight: bold")
+                             style = "font-size: 1.2rem; color: #666; text-align: justify;")
                        ),
           
                        layout_column_wrap(
                          width = 1/2,
-                         # TARJETA 1: ANÁLISIS
+                         # TARJETA 1: Funcion timeVariation
                          card(
                            fill = FALSE,
-                           card_header(strong("Variación Temporal", style = "text-align:center"), class = "bg-primary"),
+                           card_header("¿Cómo cambia la concentración del contaminante a lo largo del tiempo en Bogotá?", style = "text-align:center", class = "bg-primary"),
                            card_body(
-                             p("¿Cómo cambian los contaminantes en el tiempo?", style = "font-weight: bold; text_align:justify"),
-                             actionButton("ir_analisis", "Ir a Análisis", class = "btn-outline-dark w-100", icon = bs_icon("graph-up"))
+                             p("Analiza cómo se comporta el contaminante según la hora del día, el día de la semana y el mes del año. 
+                               Esto permite identificar patrones como picos en horas de tráfico o temporadas con mayor concentración.", style = "text_align:justify"),
+                             actionButton("ir_analisis", "Ir a Análisis", class = "btn-outline-success", icon = bs_icon("graph-up"))
                            )
                          ),
-                         # TARJETA 2: OTRA FUNCIÓN (Ejemplo)
+                         # TARJETA 2: Funcion pollutionRose
                          card(
                            fill = FALSE,
-                           card_header(strong("Rosa de Contaminantes"), class = "bg-info text-white"),
+                           card_header("¿Desde qué dirección del viento se asocian mayores concentraciones del contaminante?", style = "text-align:center", class = "bg-secondary"),
                            card_body(
-                             p("¿De dónde viene la contaminación según el viento?",  style = "font-weight: bold; text_align:justify"),
-                             actionButton("ir_rosa", "Ver Rosa", class = "btn-outline-dark w-100", icon = bs_icon("compass"))
+                             p("Esta visualización relaciona la concentración del contaminante con la dirección y velocidad del viento. 
+                               Permite identificar posibles zonas de origen cuando se registran concentraciones elevadas.",  style = "text_align:justify"),
+                             actionButton("ir_rosa", "Ver Rosa", class = "btn-outline-info", icon = bs_icon("wind"))
+                           )
+                         ),
+                         # TARJETA 2: Funcion corPlot
+                         card(
+                           fill = FALSE,
+                           card_header("¿Qué contaminantes o variables presentan mayor correlación entre sí?", style = "text-align:center", class = "bg-secondary"),
+                           card_body(
+                             p("Este análisis muestra el grado de correlación entre los contaminantes y variables meteorológicas. 
+                               Permite identificar cuáles tienden a variar en conjunto, lo que puede sugerir fuentes comunes o dinámicas atmosféricas similares.",  style = "text_align:justify"),
+                             actionButton("ir_cor", "Ver Correlación", class = "btn-outline-info", icon = bs_icon("link"))
                            )
                          )
                        )
                      )
     ),
     ui_time_variation,
-    ui_rose_pollution
+    ui_rose_pollution,
+    ui_cor_plot
   ),
   tags$footer(
     style = "background-color: #f8f9fa; padding: 20px; border-top: 1px solid #dee2e6; margin-top: auto;",
     div(class = "container text-center",
-        p(strong("Desarrollado por:"), " Tu Nombre / Institución", style = "margin-bottom: 5px;"),
+        p(strong("Desarrollado por:"), " Andres Franco", style = "margin-bottom: 5px;"),
         p("Datos oficiales de la Red de Monitoreo de Calidad del Aire de Bogotá (RMCAB).", style = "font-size: 0.9em; color: #666;"),
-        p("© 2026 - Herramienta de Análisis Atmosférico Avanzado", style = "font-size: 0.8em; color: #999; font-style: italic;")
+        p("© 2026 - Herramienta de Análisis Atmosférico Avanzado - Universidad Nacional de Colombia", style = "font-size: 0.8em; color: #999; font-style: italic;")
     )
   )
 )
@@ -91,9 +106,11 @@ server <- function (input, output, session){
   # NAVEGACIÓN
   observeEvent(input$ir_analisis, { nav_select("paginas_app", "pagina_analisis") })
   observeEvent(input$ir_rosa, { nav_select("paginas_app", "pagina_rosa") })
+  observeEvent(input$ir_cor, { nav_select("paginas_app", "pagina_cor") })
   
   observeEvent(input$volver_inicio, { nav_select("paginas_app", "inicio") })
   observeEvent(input$volver_rosa, { nav_select("paginas_app", "inicio") })
+  observeEvent(input$volver_cor, { nav_select("paginas_app", "inicio") })
   
   #LOGICA: Variacion Temporal
 
@@ -134,6 +151,25 @@ server <- function (input, output, session){
           Por favor, intenta con otra estación o cambia el rango de fechas.")
     )
     plot_pollution_rose(data = df,pollutant = input$pollutant_rose)
+  })
+  #LOGICA: Correlacion
+  data_cor<-reactive({
+    req(input$dates_cor, input$station_cor)
+    get_data_clean(
+      aqs = input$station_cor,
+      start_date = format(input$dates_cor[1], "%d-%m-%Y"),
+      end_date = format(input$dates_cor[2], "%d-%m-%Y")
+    )
+  })
+  output$plot_cor <- renderPlot({
+    df<-data_cor()
+    # Este mensaje reemplaza el error de R por un mensaje amigable
+    validate(
+      need(!is.null(df) && nrow(df) > 0, 
+           "No hay datos suficientes (viento o contaminantes) para esta estación en el rango seleccionado. 
+          Por favor, intenta con otra estación o cambia el rango de fechas.")
+    )
+    plot_correlation(data = df)
   })
   
 }
