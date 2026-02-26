@@ -10,7 +10,7 @@ ui_rose_pollution <- nav_panel_hidden(
       selectInput("station_rose", "Estación:", choices = rmcab_aqs$aqs),
       selectInput("pollutant_rose", "Contaminante:", choices = c("pm10", "pm2.5", "o3")),
       hr(),
-      actionButton("volver_rosa", "Volver al Menú", icon = bs_icon("arrow-left"))
+      actionButton("volver_inicio2", "Volver al Menú", icon = bs_icon("arrow-left"))
     ),
     card(
       card_header("Rosa de Vientos y Contaminación"),
