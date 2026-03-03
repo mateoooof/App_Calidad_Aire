@@ -1,4 +1,6 @@
 # time_variation.R
+library(shinycssloaders)
+
 
 ui_time_variation <- nav_panel_hidden(
   "pagina_analisis", # Este es el ID al que saltará el botón
@@ -8,19 +10,40 @@ ui_time_variation <- nav_panel_hidden(
       bg = "#F1F8E9",
       dateRangeInput("dates", "Rango de fechas:", 
                      start = Sys.Date() - 7, end = Sys.Date()),
-      # Nota: rmcab_aqs debe estar cargado o disponible
       selectInput("station", "Estación:", 
-                  choices = rmcab_aqs$aqs),
+                  choices = NULL),
       selectInput("pollutant", "Contaminante:", 
-                  choices = c("pm10", "pm2.5", "o3", "no2")),
+                  choices = NULL),
       hr(),
-      actionButton("volver_inicio", "Volver al Menú",class="btn-outline-success", 
+      div(class="text-center mb-3",
+          uiOutput("control_time_ui")),
+      hr(),
+      
+      #Boton para el analisis
+      actionButton("btn_analizar_tv", "Analizar Gráfica",
+                   icon=bs_icon("robot"),
+                   class="btn-primary w-100"),
+      
+      hr(),
+      actionButton("volver_inicio", "Volver al Menú", 
                    icon = bs_icon("arrow-left"))
     ),
     card(
-      card_header("Resultado"),
+      card_header("Resultado del Análisis Temporal"),
       card_body(
-        plotOutput("time_variation_plot", height = "600px")
+        withSpinner(plotOutput("time_variation_plot", height = "600px"),color = "#2E8B57"),
+        hr(),
+        #Seccion para el resutaldo de la IA
+        accordion(
+          accordion_panel(
+            "Analisis Detallado",
+            icon = bs_icon("incognito"),
+            withSpinner(uiOutput("analisis_ia_out"),
+                        type=4,
+                        color="#2E8B57",
+                        size=0.7)
+          )
+        )
       )
     )
   )
