@@ -43,4 +43,3 @@ Para mantener el código organizado y evitar conflictos, seguimos este flujo:
 4.  **Pull Request**: Abre un PR en GitHub para que revisemos los cambios antes de integrarlos a la versión final.
 
 ---
-*Proyecto desarrollado por @mateoooof como parte de herramientas de análisis para Ingeniería Química.*
