@@ -1,4 +1,6 @@
 # time_variation.R
+library(shinycssloaders)
+
 
 ui_time_variation <- nav_panel_hidden(
   "pagina_analisis", # Este es el ID al que saltará el botón
@@ -29,14 +31,17 @@ ui_time_variation <- nav_panel_hidden(
     card(
       card_header("Resultado del Análisis Temporal"),
       card_body(
-        plotOutput("time_variation_plot", height = "600px"),
+        withSpinner(plotOutput("time_variation_plot", height = "600px"),color = "#2E8B57"),
         hr(),
         #Seccion para el resutaldo de la IA
         accordion(
           accordion_panel(
             "Analisis Detallado",
             icon = bs_icon("incognito"),
-            uiOutput("analisis_ia_out")
+            withSpinner(uiOutput("analisis_ia_out"),
+                        type=4,
+                        color="#2E8B57",
+                        size=0.7)
           )
         )
       )
