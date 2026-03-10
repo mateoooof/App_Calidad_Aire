@@ -617,37 +617,58 @@ observeEvent(input$generar_corplot, {
 
 # Renderizar la gráfica
 output$plot_corplot <- renderPlot({
-  df <- datos_corplot()
   
+  df <- datos_corplot()
   if(is.null(df)) return(NULL)
   
-  # 1. Validaciones de integridad
-  validate(
-    need(!inherits(df, "character"), 
-         paste("La estación", input$station_corplot, "no reporta sensores activos en la RMCAB.")),
-    need(is.data.frame(df) && nrow(df) > 0, 
-         "La RMCAB no devolvió datos para esta estación en estas fechas.")
-  )
+  # Verificar dataframe válido
+  if(!is.data.frame(df) || nrow(df) < 5){
+    plot.new()
+    text(0.5, 0.5,"No hay suficientes datos para calcular correlación.",cex = 1.2)
+    return()
+  }
   
-  # 2. FILTRO DE CONTAMINANTES: Aquí quitamos ws, wd, etc.
-  lista_blanca <- c("pm10", "pm25", "co", "no", "no2", "nox", "so2", "ozono")
-  df_contaminantes <- df[, names(df) %in% lista_blanca, drop = FALSE]
+  # Variables numéricas
+  variables_permitidas <- c("pm10","pm2.5","no","no2","nox","so2","co","ozono","temperatura","hr") #Contaminantes + humedad + temperatura
   
-  # 3. Validación de columnas suficientes para correlación
-  validate(
-    need(ncol(df_contaminantes) >= 2, 
-         "Esta estación no tiene suficientes contaminantes diferentes para establecer una correlación.")
-  )
+  df_num <- df[, intersect(variables_permitidas, names(df)), drop = FALSE]
   
-  # Intentar graficar
-  tryCatch({
-    # Usamos el dataframe filtrado
-    plot_correlation(data = df_contaminantes)
-  }, error = function(e){
-    validate("Error de graficación: Los datos actuales no permiten generar la matriz (posibles NAs masivos).")
-  })
+  if(ncol(df_num) < 2){
+    plot.new()
+    text(0.5, 0.5,"No hay suficientes variables numéricas.",cex = 1.2)
+    return()
+  }
+  
+  # Quitar columnas con pocos datos
+  df_num <- df_num[, colSums(!is.na(df_num)) > 5, drop = FALSE]
+  
+  # Quitar columnas constantes
+  df_num <- df_num[, sapply(df_num, function(x) sd(x, na.rm = TRUE) > 0), drop = FALSE]
+  
+  if(ncol(df_num) < 2){
+    plot.new()
+    text(0.5, 0.5,"Las variables no presentan variabilidad suficiente.",cex = 1.2)
+    return()
+  }
+  
+  # Calcular matriz
+  matriz_cor <- cor(df_num, use = "pairwise.complete.obs")
+  
+  # Verificar matriz válida
+  if(any(is.na(matriz_cor)) || ncol(matriz_cor) < 2){
+    plot.new()
+    text(0.5, 0.5,"No fue posible construir una matriz de correlación válida.",cex = 1.2)
+    return()
+  }
+  
+  # Graficar
+  par(bg = "white", mar = c(1,1,3,1))
+  
+  corrplot::corrplot(matriz_cor,method = "ellipse",type = "full",order = "hclust",addCoef.col = "black",number.cex = 0.7,tl.col = "black",tl.cex = 0.9,tl.srt = 45,col = colorRampPalette(c("#83D0A4", "#FAFFB5","#A32B50" ))(200))
+  
+  title(main = paste("Matriz de Correlación - Estación", input$station_corplot),line = 1)
+  
 })
-
 # PAGINA 4 - GIFT
 # datos_gif_path<- reactiveVal(NULL)
 # esta_cargando_gif <- reactiveVal(FALSE)
@@ -765,7 +786,7 @@ output$plot_scatter <- renderPlot({
       )
     ) +
       geom_point(alpha = 0.4, color = "#3B0084") +
-      #geom_smooth(method = "lm", se = FALSE, color = "black") + #Lianea de tendencia lineal
+      geom_smooth(method = "lm", se = FALSE, color = "black") + #Lianea de tendencia lineal
       theme_minimal(base_size = 14) +
       labs(
         x = toupper(input$Pollutant_x),
