@@ -217,7 +217,7 @@ ui <- page_fillable(
             ),
             # Columna Central: Créditos
             div(class = "col-md-4 text-center",
-                p(strong("Desarrollado por:"), " Andres Franco", style = "margin-bottom: 5px;"),
+                p(strong("Desarrollado por:"), " Andres Franco - Natalia Lopez", style = "margin-bottom: 5px;"),
                 p("© 2026 - Universidad Nacional de Colombia", 
                   style = "font-size: 0.8rem; color: #999; font-style: italic;")
             ),
@@ -370,7 +370,6 @@ observeEvent(input$generar_time,{
   
   texto_analisis_ia("")
   v_res_tv_objeto(NULL)
-  
   esta_cargando_time(TRUE)
   
   #Limpiar analisis previo al generar nueva grafica
@@ -387,8 +386,15 @@ observeEvent(input$generar_time,{
     },silent = TRUE)
     
     #Detectar error
-    if(inherits(resultado, "try-error")){
-      message("Error detectado en get_data_clean:",resultado)
+    if(inherits(resultado, "try-error") || is.null(resultado) || nrow(resultado)==0){
+      message("Error o datos vacíos en:", input$station)
+      
+      # Notificación visual para el usuario 
+      showNotification(
+        "La estación seleccionada no reporta datos en este periodo. Por favor, intenta con otra estación o rango de fechas.",
+        type = "warning",
+        duration = 10
+      )
       datos_time_historicos(NULL) 
     }else{
       datos_time_historicos(resultado)
@@ -398,18 +404,25 @@ observeEvent(input$generar_time,{
 })
 #Renderizar la grafica
 output$time_variation_plot<-renderPlot({
+  input$generar_time
+  
   df<-datos_time_historicos()
   if(is.null(df)){
     return(NULL)
   }
+  
+  p_sel <- (input$pollutant)
+  s_sel <- (input$station)
+  
   shiny::validate(
+    shiny::need(!is.null(df), "Por favor, selecciona una estación y haz clic en 'Generar Gráfica'"),
     shiny::need(is.data.frame(df), "Hubo un problema técnico al procesar los datos"),
     shiny::need(nrow(df)>0,"La RMCAB no devolvió datos para esta estación en estas fechas."),
-    shiny::need(input$pollutant %in% names (df), paste("La estacion", input$station, "no mide", input$pollutant))
+    shiny::need(input$pollutant %in% names (df), paste("La estacion", s_sel, "no mide", p_sel))
   )
   #Intentat graficas
   tryCatch({
-    res<-plot_time_variation(data = df,pollutant = input$pollutant)
+    res<-plot_time_variation(data = df,pollutant = p_sel)
     v_res_tv_objeto(res)
     return(res)
   }, error= function(e){
@@ -419,50 +432,61 @@ output$time_variation_plot<-renderPlot({
   
 })
 
-#LOGICA BOTON IA ANALISIS
 observeEvent(input$btn_analizar_tv, {
   req(v_res_tv_objeto()) 
+  texto_analisis_ia(NULL)
   
-  texto_analisis_ia("Iniciando análisis... revisando conexión.")
+  # Aislamos para evitar reactividad no deseada
+  p_ia <- isolate(input$pollutant)
+  s_ia <- isolate(input$station)
   
-  # 1. Extraer datos para asegurar que el objeto existe
+  texto_analisis_ia("Estableciendo conexión segura con Google...")
+  
+  # Preparar datos
   res_obj <- v_res_tv_objeto()
-  datos_json <- jsonlite::toJSON(as.data.frame(res_obj$data$day.hour[, c("hour", "Mean")]))
+  datos_df <- as.data.frame(res_obj$data$day.hour[, c("hour", "Mean")])
+  datos_json <- jsonlite::toJSON(datos_df)
   
-  # 2. Intentar la conexión directa
   tryCatch({
-    api_key <- "AIzaSyAHVqqIBu3jk7lBTneurg0X5FM02GpQC_c" 
-    url <- "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+    api_key <- Sys.getenv("GEMINI_API_KEY")
     
-    prompt <- paste(   "Actúa como un experto en calidad del aire de la Red de Monitoreo de Bogotá (RMCAB). ",
-                        "Analiza el comportamiento del contaminante ", input$pollutant, " en la estación ", input$station, 
-                        " basándote en estos resultados de la función timeVariation de openair:\n\n",
-                        "TAREA:\n",
-                        "1. Explica los picos horarios: ¿Coinciden con las horas pico de tráfico en Bogotá (6-9 AM / 5-8 PM)?\n",
-                        "2. Compara días laborales con el fin de semana.\n",
-                        "3. Si hay datos mensuales, menciona si la tendencia es estacional (ej. picos en febrero/marzo).\n",
-                        "4. Da recomendaciones breves según los niveles observados.\n\n",
-                        "IMPORTANTE: Escribe la respuesta en formato Markdown para que se vea bien en la app.", datos_json)
+    # URL MODIFICADA (Usando gemini-pro que es la ruta más compatible)
+    url_ia <- "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
     
-    cuerpo <- list(contents = list(list(parts = list(list(text = prompt)))))
+    # Construcción manual del cuerpo para asegurar compatibilidad total
+    cuerpo <- list(
+      contents = list(
+        list(parts = list(list(text = paste(
+          "Analiza como experto en aire de Bogotá el contaminante", p_ia, 
+          "en la estación", s_ia, "con estos datos:", datos_json
+        ))))
+      )
+    )
     
-    # Petición explícita con nombres de librería
-    req <- httr2::request(url) %>%
+    # Petición usando el método de tubería (pipeline) de httr2
+    resp <- httr2::request(url_ia) %>%
       httr2::req_url_query(key = api_key) %>%
       httr2::req_body_json(cuerpo) %>%
-      httr2::req_method("POST")
+      httr2::req_method("POST") %>%
+      httr2::req_perform()
     
-    resp <- httr2::req_perform(req)
+    # Procesar respuesta
     resultado <- httr2::resp_body_json(resp)
     
-    texto_final <- resultado$candidates[[1]]$content$parts[[1]]$text
-    texto_analisis_ia(texto_final)
+    # Extraer texto (con validación de existencia)
+    if (!is.null(resultado$candidates)) {
+      texto_final <- resultado$candidates[[1]]$content$parts[[1]]$text
+      texto_analisis_ia(texto_final)
+    } else {
+      texto_analisis_ia("El servidor respondió pero no generó texto. Intenta de nuevo.")
+    }
     
   }, error = function(e) {
-    texto_analisis_ia(paste("ERROR TÉCNICO DETALLADO:", e$message))
+    # Si sigue saliendo 404, el mensaje nos dirá exactamente qué URL falló
+    texto_analisis_ia(paste("Error en la ruta del modelo:", e$message))
+    message("Error 404 detectado. URL intentada: ", url_ia)
   })
 })
-
 
 output$analisis_ia_out<- renderUI({
   if(texto_analisis_ia()==""){
@@ -476,6 +500,9 @@ output$analisis_ia_out<- renderUI({
     )
   }
 })
+
+
+
 
 #----LOGICA PAGINA: Rosa de Contaminantes----
 
@@ -506,13 +533,11 @@ output$control_rose_ui <- renderUI({
 observeEvent(input$generar_rose,{
   req(input$dates_rose, input$station_rose)
   
+  datos_rose(NULL)
   texto_analisis_ia_rp("")
   v_res_rp_objeto(NULL)
-  
   esta_cargando_rose(TRUE)
   
-  #Limpiar analisis previo al generar nueva grafica
-  texto_analisis_ia_rp("")
   
   withProgress(message = "Obteniendo datos meteorologicos...", value=0.5,{
     output$mensaje_carga_rose <- renderText({ 
@@ -528,9 +553,13 @@ observeEvent(input$generar_rose,{
     },silent = TRUE)
     
     #Detectar error
-    if(inherits(df, "try-error")){
-      message("Error detectado en get_data_clean:",df)
-      datos_rose("error_api") 
+    if(inherits(df, "try-error") || is.null(df) || (is.data.frame(df) && nrow(df)==0)){
+      showNotification(
+        paste("La estación seleccionada no reporta datos en este periodo. Por favor, intenta con otra estación o rango de fechas."),
+        type = "warning",
+        duration = 10
+      )
+      datos_rose(NULL)
     }else{
       datos_rose(df)
     }
@@ -539,22 +568,33 @@ observeEvent(input$generar_rose,{
 })
 #Renderizar la grafica
 output$plot_rose<-renderPlot({
+  input$generar_rose
+  
   df<-datos_rose()
   if(is.null(df)){
     return(NULL)
   }
+  
+  p_sel<- (input$pollutant_rose)
+  s_sel <- (input$station_rose)
+  
   shiny::validate(
-    shiny::need(!inherits(df, "character"), 
-         paste("La estación", input$station_rose, "no reporta sensores activos en la RMCAB.")),
-    shiny::need(is.data.frame(df), "Hubo un problema técnico al procesar los datos"),
-    shiny::need(nrow(df)>0,"La RMCAB no devolvió datos para esta estación en estas fechas."),
-    shiny::need(any(!is.na(df$ws)) && any(!is.na(df$wd)), 
-         "Esta estación no cuenta con datos de viento (velocidad/dirección) para este periodo."),
-    shiny::need(input$pollutant_rose %in% names (df), paste("La estacion", input$station_rose, "no mide", toupper(input$pollutant_rose)))
+    shiny::need(is.data.frame(df), "Datos no válidos."),
+    shiny::need(nrow(df) > 0, "La RMCAB no devolvió datos."),
+    
+    # Verifica que el contaminante tenga datos numéricos reales
+    shiny::need(p_sel %in% names(df) && sum(!is.na(df[[p_sel]])) > 0, 
+                paste("La estación", s_sel, "registra el sensor de", toupper(p_sel), 
+                      "pero todos los valores en este rango de fechas son nulos (NAs).")),
+    
+    # Verifica que el viento tenga datos reales
+    shiny::need(sum(!is.na(df$ws)) > 0 && sum(!is.na(df$wd)) > 0,
+                "Existen columnas de viento pero no hay valores numéricos válidos (NAs).")
   )
   #Intentat graficas
   tryCatch({
-    res<-plot_pollution_rose(data = df,pollutant = input$pollutant_rose)
+    df_clean <- df[!is.na(df$ws) & !is.na(df$wd) & !is.na(df[[p_sel]]), ]
+    res<-plot_pollution_rose(data = df,pollutant = p_sel)
     v_res_rp_objeto(res)
     return(res)
   }, error= function(e){
@@ -564,12 +604,132 @@ output$plot_rose<-renderPlot({
   
 })
 
+observeEvent(input$btn_analizar_rp, {
+  req(v_res_rp_objeto())
+  texto_analisis_ia_rp(NULL)
+  
+  p_ia <- isolate(input$pollutant_rose)
+  s_ia <- isolate(input$station_rose)
+  
+  texto_analisis_ia_rp("Estableciendo conexión segura con Google...")
+  
+  # --- PREPARAR DATOS REALES DE LA ROSA ---
+  res_obj <- v_res_rp_objeto()
+  datos_df <- as.data.frame(res_obj$data)
+  
+  # Columnas de intervalos de concentración (los bins de color de la rosa)
+  cols_intervalos <- grep("^Interval", names(datos_df), value = TRUE)
+  
+  # Construir tabla resumen: dirección + frecuencia acumulada por bin
+  resumen <- datos_df[, c("wd", cols_intervalos), drop = FALSE]
+  resumen$direccion_grados <- resumen$wd
+  resumen$frecuencia_total_pct <- rowSums(resumen[, cols_intervalos], na.rm = TRUE)
+  resumen$wd <- NULL
+  
+  # Renombrar intervalos con contexto
+  n_bins <- length(cols_intervalos)
+  for (i in seq_along(cols_intervalos)) {
+    names(resumen)[names(resumen) == cols_intervalos[i]] <- paste0("bin_", i, "_de_", n_bins, "_pct")
+  }
+  
+  # Extraer los límites de los bins desde el objeto (si están disponibles en call)
+  breaks_info <- tryCatch({
+    as.character(res_obj$call)
+  }, error = function(e) "no disponible")
+  
+  datos_json <- jsonlite::toJSON(
+    list(
+      descripcion = paste(
+        "Rosa de contaminantes para", p_ia, "en estacion", s_ia,
+        "- Cada fila es un sector de direccion del viento.",
+        "Los bins (bin_1 al bin_N) representan categorias de concentracion de menor a mayor.",
+        "El valor es el porcentaje de observaciones en esa categoria para esa direccion.",
+        "frecuencia_total_pct es el porcentaje total de vientos desde esa direccion."
+      ),
+      datos_por_sector = resumen
+    ),
+    auto_unbox = TRUE,
+    pretty = FALSE,
+    na = "null"
+  )
+  
+  tryCatch({
+    api_key <- Sys.getenv("GEMINI_API_KEY")
+    url_ia <- "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    
+    prompt_texto <- paste0(
+      "Eres un experto en calidad del aire de Bogotá. ",
+      "Analiza los datos de una Rosa de Contaminantes para '", p_ia, 
+      "' en la estación '", s_ia, "'. ",
+      "Cada fila representa un sector de dirección del viento. ",
+      "Los bins van de concentración baja (bin_1) a alta (bin_N) y el valor es el porcentaje de observaciones. ",
+      "frecuencia_total_pct indica qué tan frecuente es el viento desde esa dirección. ",
+      "Por favor: ",
+      "1) Identifica las direcciones con mayor concentración del contaminante. ",
+      "2) Señala si hay una fuente probable según esas direcciones en el contexto urbano de Bogotá. ",
+      "3) Comenta si el viento dominante coincide o no con las mayores concentraciones. ",
+      "4) Da una conclusión breve sobre el riesgo para la zona. ",
+      "No uses en la descripcion los terminos bin_1 o bin_N o frecuencia_total_pct. Pues el usuario no va a saber que eso, reemplazo el nombre ent erminos que
+      entienda la poblacion en general. Debe ser un analisis que cualquier persona pueda entender pero mantiendo en cierto grado lo tecnico",
+      "Datos JSON: ", datos_json
+    )
+    
+    cuerpo <- list(
+      contents = list(
+        list(parts = list(list(text = prompt_texto)))
+      )
+    )
+    
+    resp <- httr2::request(url_ia) %>%
+      httr2::req_url_query(key = api_key) %>%
+      httr2::req_body_json(cuerpo) %>%
+      httr2::req_method("POST") %>%
+      httr2::req_perform()
+    
+    resultado <- httr2::resp_body_json(resp)
+    
+    if (!is.null(resultado$candidates)) {
+      texto_final <- resultado$candidates[[1]]$content$parts[[1]]$text
+      texto_analisis_ia_rp(texto_final)
+    } else {
+      texto_analisis_ia_rp("El servidor respondió pero no generó texto. Intenta de nuevo.")
+    }
+    
+  }, error = function(e) {
+    texto_analisis_ia_rp(paste("Error al conectar con Gemini:", e$message))
+  })
+})
+
+output$analisis_ia_out_rp <- renderUI({
+  texto <- texto_analisis_ia_rp()
+  if (is.null(texto) || texto == "") {
+    p("Haz clic en 'Analizar Rosa' para generar una interpretación automática.",
+      style = "color: #888; font-style:italic; padding:10px")
+  } else {
+    div(
+      class = "analisis-container",
+      style = "background-color:#f8f9fa; border-left:4px solid #0277BD; padding:15px; border-radius:4px",
+      markdown(texto)
+    )
+  }
+})
+
+
+
+
+
 
 
 #----LOGICA PAGINA: Correlacion de Contaminantes----
 
 datos_corplot <- reactiveVal(NULL)
 esta_cargando_corplot <- reactiveVal(FALSE)
+
+#Variables IA
+#Variables IA
+v_res_cor_objeto <- reactiveVal(NULL) #Guarda el objeto de openar
+texto_analisis_ia_cor <- reactiveVal("") #Guarda la respuesta
+esta_analizando_ia <- reactiveVal(FALSE) #Estado de carga de la ia
 
 # Control Dinámico Botón
 output$control_corplot_ui <- renderUI({
@@ -589,6 +749,10 @@ output$control_corplot_ui <- renderUI({
 # Lógica descarga al presionar botón
 observeEvent(input$generar_corplot, {
   req(input$dates_corplot, input$station_corplot)
+
+  datos_corplot(NULL)
+  texto_analisis_ia_cor("")
+  v_res_cor_objeto(NULL)
   esta_cargando_corplot(TRUE)
   
   withProgress(message = "Obteniendo datos para matriz...", value=0.2, {
@@ -606,8 +770,13 @@ observeEvent(input$generar_corplot, {
     }, silent = TRUE)
     
     # Detectar error técnico (Bosa/Usme/API)
-    if(inherits(df, "try-error")){
-      datos_corplot("error_api") 
+    if(inherits(df, "try-error") || is.null(df) || (is.data.frame(df) && nrow(df)==0)){
+      showNotification(
+        paste("La estación no reporta datos suficientes para la matriz de correlación en estas fechas."),
+        type = "warning",
+        duration = 10
+      )
+      datos_corplot(NULL)
     } else {
       datos_corplot(df)
     }
@@ -617,7 +786,7 @@ observeEvent(input$generar_corplot, {
 
 # Renderizar la gráfica
 output$plot_corplot <- renderPlot({
-  
+
   df <- datos_corplot()
   if(is.null(df)) return(NULL)
   
@@ -627,7 +796,6 @@ output$plot_corplot <- renderPlot({
     text(0.5, 0.5,"No hay suficientes datos para calcular correlación.",cex = 1.2)
     return()
   }
-  
   # Variables numéricas
   variables_permitidas <- c("pm10","pm2.5","no","no2","nox","so2","co","ozono","temperatura","hr") #Contaminantes + humedad + temperatura
   
@@ -652,6 +820,7 @@ output$plot_corplot <- renderPlot({
   }
   
   # Calcular matriz
+  
   matriz_cor <- cor(df_num, use = "pairwise.complete.obs")
   
   # Verificar matriz válida
@@ -667,8 +836,99 @@ output$plot_corplot <- renderPlot({
   corrplot::corrplot(matriz_cor,method = "ellipse",type = "full",order = "hclust",addCoef.col = "black",number.cex = 0.7,tl.col = "black",tl.cex = 0.9,tl.srt = 45,col = colorRampPalette(c("#83D0A4", "#FAFFB5","#A32B50" ))(200))
   
   title(main = paste("Matriz de Correlación - Estación", input$station_corplot),line = 1)
-  
 })
+#Analisis IA
+observeEvent(input$btn_analizar_cor, {
+  req(v_res_cor_objeto()) 
+  texto_analisis_ia_cor(NULL)
+  
+  if(is.null(v_res_cor_objeto()$data)) {
+    showNotification("Error: No hay datos en la matriz para analizar.", type = "error")
+    return()
+  }
+  
+  res_obj <- v_res_cor_objeto()
+  datos_df <- as.data.frame(res_obj$data)
+  
+  # Aislamos para evitar reactividad no deseada
+
+  s_ia_cor <- isolate(input$station_corplot)
+  
+  names(datos_df)[1]<- "var1"
+  names(datos_df)[2]<- "var2"
+  
+  if("cor" %in% names(datos_df)){
+    names(datos_df)[names(datos_df) == "cor"] <- "valor"
+  } else {
+    names(datos_df)[3]<-"valor"
+  }
+  
+  
+  texto_analisis_ia_cor("Analizando matriz de correalciones")
+  
+  # Preparar datos
+ datos_df <- datos_df[as.character(datos_df$var1) != as.character(datos_df$var2), ]
+ datos_df$valor <- round(as.numeric(datos_df$valor), 1)
+ datos_df<- datos_df[as.numeric(factor(datos_df$var1))>as.numeric(factor(datos_df$var2)), ]
+ datos_json <- jsonlite::toJSON(datos_df)
+  
+  tryCatch({
+    api_key <- Sys.getenv("GEMINI_API_KEY")
+    
+    # URL MODIFICADA (Usando gemini-pro que es la ruta más compatible)
+    url_ia <- "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    
+    # Construcción manual del cuerpo para asegurar compatibilidad total
+    cuerpo <- list(
+      contents = list(
+        list(parts = list(list(text = paste(
+          "Actúa como un experto en calidad del aire de la red RMCAB de Bogotá.",
+          "Analiza la siguiente matriz de correlación de contaminantes:", datos_json,"para la estacion", s_ia_cor,
+          "Explica qué significan las correlaciones más fuertes (cercanas a 1 o -1)",
+          "y menciona posibles fuentes comunes o reacciones químicas (como el ciclo fotoquímico NO2-O3) en el contexto de Bogotá."
+        ))))
+      )
+    )
+    
+    # Petición usando el método de tubería (pipeline) de httr2
+    resp <- httr2::request(url_ia) %>%
+      httr2::req_url_query(key = api_key) %>%
+      httr2::req_body_json(cuerpo) %>%
+      httr2::req_method("POST") %>%
+      httr2::req_perform()
+    
+    # Procesar respuesta
+    resultado <- httr2::resp_body_json(resp)
+    
+    # Extraer texto (con validación de existencia)
+    if (!is.null(resultado$candidates)) {
+      texto_final <- resultado$candidates[[1]]$content$parts[[1]]$text
+      texto_analisis_ia_cor(texto_final)
+    } else {
+      texto_analisis_ia_cor("El servidor respondió pero no generó texto. Intenta de nuevo.")
+    }
+    
+  }, error = function(e) {
+    # Si sigue saliendo 404, el mensaje nos dirá exactamente qué URL falló
+    texto_analisis_ia_cor(paste("Error en la ruta del modelo:", e$message))
+    message("Error 404 detectado. URL intentada: ", url_ia)
+  })
+})
+
+output$analisis_ia_out_cor<- renderUI({
+  if(texto_analisis_ia_cor()==""){
+    p("Haz clic en 'Analizar Gráfica' para generar una interpretacion automática.",
+      style = "color: #888; font-style:italic; padding:10px")
+  }else{
+    div(
+      class="analisis-container",
+      style="background-color:#f8f9fa; border-left:4px solid #0d6efd; padding:15px; border-radius:px",
+      markdown(texto_analisis_ia_cor())
+    )
+  }
+})
+
+
 # PAGINA 4 - GIFT
 # datos_gif_path<- reactiveVal(NULL)
 # esta_cargando_gif <- reactiveVal(FALSE)
@@ -805,4 +1065,4 @@ output$plot_scatter <- renderPlot({
 }
 
 shinyApp(ui, server)
-
+  
