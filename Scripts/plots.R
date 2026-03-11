@@ -18,3 +18,7 @@ plot_correlation <- function (data){
   res<-corPlot(data)
   return(res)
 }
+
+plot_scatter <- function (data, x,y){
+  res <- scatterPlot(data,x,y,method = "scatter")
+}

@@ -97,62 +97,145 @@ ui <- page_fillable(
                            
                            # Tarjeta 1
                            card(
-                             card_header("Dinámica Temporal", class = "bg-primary text-white",style="font-size:1.2rem"),
-                             card_body(
-                               #Texto arriba
-                              div(style = "min-height: 100px;",
-                                p(strong("¿En qué momentos del día o la semana se alcanzan los picos críticos de polución?"), 
-                                  style = "font-size: 1rem; color: #2E8B57; margin-bottom: 5px;text-align:center"),
-                                p("Explora ciclos horarios, diarios y mensuales mediante modelos de variación estadística.", 
-                                  style = "font-size: 1rem; color: #666;")
-                              ),
-                              #Imagen debajo
-                              div(class= "text-center my-3",
-                                  tags$img(src="timeVariation.png", style = "width: 100%; max-height: 200px; object-fit: contain; border-radius: 5px;")
-                              )
+                             # Estilo de la card: Bordes redondeados y sombra sutil para que flote sobre el fondo #f5f5f5
+                             style = "border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s ease;",
+                             
+                             card_header(
+                               div(class = "d-flex align-items-center",
+                                   bs_icon("clock-history", size = "1.5rem", class = "me-2"),
+                                   span("Dinámica Temporal", style = "font-weight: 700; font-size: 1.25rem;")
                                ),
-                             card_footer(
-                               actionButton("ir_analisis", "Abrir Análisis Temporal", class = "btn-outline-primary w-100")
-                             )
+                               # Cambiamos el azul primario por un Slate-Blue más profesional
+                               style = "background-color: #2c3e50; color: white; border: none; padding: 15px;"
                              ),
+                             
+                             card_body(
+                               style = "padding: 20px; background-color: white;",
+                               
+                               # Texto superior
+                               div(style = "min-height: 90px; text-align: center;",
+                                   p("¿En qué momentos se alcanzan los picos críticos de polución?", 
+                                     style = "font-size: 1.1rem; color: #2E8B57; font-weight: 700; margin-bottom: 8px; line-height: 1.2;"),
+                                   p("Identifica ciclos horarios y patrones semanales mediante modelos de variación estadística avanzada.", 
+                                     style = "font-size: 0.95rem; color: #7f8c8d; font-weight: 400;")
+                               ),
+                               
+                               # Contenedor de Imagen con efecto de marco
+                               div(class = "text-center my-3",
+                                   style = "border-radius: 10px; padding: 10px; border: 1px solid #edf2f7;",
+                                   tags$img(
+                                     src = "timeVariation.png", 
+                                     style = "width: 100%; max-height: 180px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));"
+                                   )
+                               )
+                             ),
+                             
+                             card_footer(
+                               style = "background: white; border-top: 1px solid #f1f1f1; padding: 15px;",
+                               # El botón ahora es sólido para invitar a la acción (Call to Action)
+                               actionButton(
+                                 "ir_analisis", 
+                                 "Explorar Análisis Temporal", 
+                                 icon = bs_icon("arrow-right-circle"),
+                                 style = "background-color: #1A73E8; color: white; border: none; width: 100%; font-weight: 700; padding: 12px; border-radius: 8px; transition: 0.3s;",
+                                 class = "btn-hover-effect" # Puedes añadir una clase para efectos CSS
+                               )
+                             )
+                           ),
                            
                            # Tarjeta 2
                            card(
-                             card_header("Origen y Dispersión", class = "bg-info text-white",style="font-size:1.2rem"),
-                             card_body(
-                               div(style = "min-height: 100px;",
-                                   p(strong("¿Desde qué dirección provienen las masas de aire más contaminadas hacia la estación?"), 
-                                     style = "font-size: 1rem; color: #007BFF; margin-bottom: 5px;text-align:center"),
-                                   p("Cruza datos de velocidad y dirección del viento para localizar fuentes de emisión potenciales.", 
-                                     style = "font-size: 1rem; color: #666;")
+                             # Mantenemos el radio de 15px y la sombra suave para consistencia visual
+                             style = "border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s ease;",
+                             
+                             card_header(
+                               div(class = "d-flex align-items-center",
+                                   bs_icon("compass", size = "1.5rem", class = "me-2"),
+                                   span("Origen y Dispersión", style = "font-weight: 700; font-size: 1.25rem;")
                                ),
+                               # Usamos un azul profundo pero vibrante para el tema de vientos
+                               style = "background-color: #0369A1; color: white; border: none; padding: 15px;"
+                             ),
+                             
+                             card_body(
+                               style = "padding: 20px; background-color: white;",
+                               
+                               # Texto superior: Pregunta gancho
+                               div(style = "min-height: 90px; text-align: center;",
+                                   p("¿Desde qué dirección provienen las masas de aire más contaminadas?", 
+                                     style = "font-size: 1.1rem; color: #0284C7; font-weight: 700; margin-bottom: 8px; line-height: 1.2;"),
+                                   p("Cruza datos de velocidad y dirección del viento para localizar fuentes de emisión potenciales en la ciudad.", 
+                                     style = "font-size: 0.95rem; color: #7f8c8d; font-weight: 400;")
+                               ),
+                               
+                               # Contenedor de Imagen con marco celeste suave
                                div(class = "text-center my-3",
-                                   tags$img(src = "pollutionRose.png", 
-                                            style = "width: 100%; max-height: 200px; object-fit: contain; border-radius: 5px;")
+                                   style = "border-radius: 10px; padding: 10px; border: 1px solid #E0F2FE;",
+                                   tags$img(
+                                     src = "pollutionRose.png", 
+                                     style = "width: 100%; max-height: 180px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));"
+                                   )
                                )
                              ),
+                             
                              card_footer(
-                               actionButton("ir_rosa", "Generar Rosa de Vientos", class = "btn-outline-info w-100")
+                               style = "background: white; border-top: 1px solid #f1f1f1; padding: 15px;",
+                               # Botón Call to Action unificado con el estilo de la app
+                               actionButton(
+                                 "ir_rosa", 
+                                 "Analizar Procedencia", 
+                                 icon = bs_icon("wind"),
+                                 style = "background-color: #0369A1; color: white; border: none; width: 100%; font-weight: 700; padding: 12px; border-radius: 8px;",
+                                 class = "btn-hover-effect"
+                               )
                              )
                            ),
                            
                            # Tarjeta 3
                            card(
-                             card_header("Relación Multivariada", class = "bg-dark text-white",style="font-size:1.2rem"),
-                             card_body(
-                               div(style = "min-height: 100px;",
-                                   p(strong("¿Cómo influye la humedad o la temperatura en la concentración de material particulado?"), 
-                                     style = "font-size: 1rem; color: #343a40; margin-bottom: 5px;text-align:center"),
-                                   p("Analiza la dependencia lineal entre variables meteorológicas y contaminantes críticos.", 
-                                     style = "font-size: 1rem; color: #666;")
+                             # Mantenemos el estándar de 15px de radio y sombra suave para consistencia
+                             style = "border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s ease;",
+                             
+                             card_header(
+                               div(class = "d-flex align-items-center",
+                                   bs_icon("grid-3x3-gap", size = "1.5rem", class = "me-2"),
+                                   span("Relación Multivariada", style = "font-weight: 700; font-size: 1.25rem;")
                                ),
+                               # Usamos un tono pizarra oscuro para denotar seriedad analítica
+                               style = "background-color: #34495e; color: white; border: none; padding: 15px;"
+                             ),
+                             
+                             card_body(
+                               style = "padding: 20px; background-color: white;",
+                               
+                               # Texto superior
+                               div(style = "min-height: 90px; text-align: center;",
+                                   p("¿Cómo influye el clima en la concentración de partículas?", 
+                                     style = "font-size: 1.1rem; color: #2c3e50; font-weight: 700; margin-bottom: 8px; line-height: 1.2;"),
+                                   p("Analiza la dependencia lineal entre variables meteorológicas y contaminantes críticos mediante matrices de Pearson.", 
+                                     style = "font-size: 0.95rem; color: #7f8c8d; font-weight: 400;")
+                               ),
+                               
+                               # Contenedor de Imagen con marco gris técnico
                                div(class = "text-center my-3",
-                                   tags$img(src = "correlation.png", 
-                                            style = "width: 100%; max-height: 200px; object-fit: contain; border-radius: 5px;")
+                                   style = "border-radius: 10px; padding: 10px; border: 1px solid #e2e8f0;",
+                                   tags$img(
+                                     src = "correlation.png", 
+                                     style = "width: 100%; max-height: 180px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));"
+                                   )
                                )
                              ),
+                             
                              card_footer(
-                               actionButton("ir_cor", "Ver Matriz de Correlación", class = "btn-outline-dark w-100")
+                               style = "background: white; border-top: 1px solid #f1f1f1; padding: 15px;",
+                               # Botón sólido para mantener la jerarquía de botones principales
+                               actionButton(
+                                 "ir_cor", 
+                                 "Visualizar Matriz", 
+                                 icon = bs_icon("table"),
+                                 style = "background-color: #34495e; color: white; border: none; width: 100%; font-weight: 700; padding: 12px; border-radius: 8px;",
+                                 class = "btn-hover-effect"
+                               )
                              )
                            ),
                            # Tarjeta 4: Mapa Animado (GIF)
@@ -175,20 +258,49 @@ ui <- page_fillable(
                            ),
                            # Tarjeta 5:Correlacion entre dos contaminantes
                            card(
-                             card_header("Correlacion Bivariada", class = "bg-success", style="font-size:1.2rem"),
-                             card_body(
-                               div(style = "min-height: 100px;",
-                                   p(strong("¿Cómo se relacionan dos contaminantes entre si?"), 
-                                     style = "font-size: 1rem; color: #368062; margin-bottom: 5px;text-align:center"),
-                                   p("Explora la dependencia estadistíca de dos contaminantes mediante diagramas de dispersión y coeficientes de correlación.", 
-                                     style = "font-size: 1rem; color: #666;")
+                             # Consistencia total: radio de 15px, sin borde y sombra sutil
+                             style = "border-radius: 15px; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.3s ease;",
+                             
+                             card_header(
+                               div(class = "d-flex align-items-center",
+                                   bs_icon("graph-up-arrow", size = "1.5rem", class = "me-2"),
+                                   span("Correlación Bivariada", style = "font-weight: 700; font-size: 1.25rem;")
                                ),
+                               # Usamos un color Índigo/Púrpura Profundo para análisis de variables
+                               style = "background-color: #4F46E5; color: white; border: none; padding: 15px;"
+                             ),
+                             
+                             card_body(
+                               style = "padding: 20px; background-color: white;",
+                               
+                               # Texto superior: Pregunta gancho
+                               div(style = "min-height: 90px; text-align: center;",
+                                   p("¿Cómo se relacionan dos contaminantes entre sí?", 
+                                     style = "font-size: 1.1rem; color: #4338CA; font-weight: 700; margin-bottom: 8px; line-height: 1.2;"),
+                                   p("Explora la dependencia estadística mediante diagramas de dispersión y detecta patrones de emisión simultánea.", 
+                                     style = "font-size: 0.95rem; color: #7f8c8d; font-weight: 400;")
+                               ),
+                               
+                               # Contenedor de Imagen con marco púrpura muy tenue
                                div(class = "text-center my-3",
-                                   tags$img(src = "CorrelacionBivariada.png", style = "width: 100%; max-height: 200px; object-fit: contain; border-radius: 5px;")
+                                   style = "border-radius: 10px; padding: 10px; border: 1px solid #EDE9FE;",
+                                   tags$img(
+                                     src = "CorrelacionBivariada.png", 
+                                     style = "width: 100%; max-height: 180px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.08));"
+                                   )
                                )
                              ),
+                             
                              card_footer(
-                               actionButton("ir_scatter", "Ver correlación bivariada", class = "btn-outline-success w-100")
+                               style = "background: white; border-top: 1px solid #f1f1f1; padding: 15px;",
+                               # Botón sólido unificado
+                               actionButton(
+                                 "ir_scatter", 
+                                 "Analizar Dispersión", 
+                                 icon = bs_icon("activity"),
+                                 style = "background-color: #4F46E5; color: white; border: none; width: 100%; font-weight: 700; padding: 12px; border-radius: 8px;",
+                                 class = "btn-hover-effect"
+                               )
                              )
                            )
                            
@@ -967,6 +1079,14 @@ output$analisis_ia_out_cor<- renderUI({
 datos_scatter <- reactiveVal(NULL)
 esta_cargando_scatter <- reactiveVal(FALSE)
 
+
+#Variables IA scatter
+v_res_scatter_objeto <- reactiveVal(NULL)
+texto_analisis_ia_scatter <- reactiveVal("")
+esta_analizando_ia_scatter <- reactiveVal (FALSE)
+                                
+
+
 # ---- Botón dinámico ----
 output$control_scatter_ui <- renderUI({
   if (esta_cargando_scatter()) {
@@ -981,7 +1101,7 @@ output$control_scatter_ui <- renderUI({
       "generar_scatter",
       "Generar Diagrama",
       icon = icon("chart-line"),
-      style = "background-color: #2E8B57; color: white; border: none; width: 100%; font-weight:700; padding: 10px;"
+      style = "background-color: #A7AAAB; color: white; border: none; width: 100%; font-weight:700; padding: 10px;"
     )
   }
 })
@@ -1011,43 +1131,114 @@ observeEvent(input$generar_scatter, {
 # ---- Renderizado del diagrama ----
 output$plot_scatter <- renderPlot({
   df <- datos_scatter()
-  if (is.null(df)) return(NULL)
+  req(df,input$Pollutant_x,input$Pollutant_y)
+  
+  if (is.character(df)&& df=="error_api") return (NULL)
+  
+  
   shiny::validate(
-    shiny::need(!inherits(df, "character"),
-                paste("La estación", input$station_scatter,
-                      "no reporta sensores activos en la RMCAB.")),
-    shiny::need(is.data.frame(df) && nrow(df) > 0,
-                "La RMCAB no devolvió datos para esta estación en estas fechas."),
-    shiny::need(input$Pollutant_x %in% names(df),
-                paste("La estación no mide", toupper(input$Pollutant_x))),
-    shiny::need(input$Pollutant_y %in% names(df),
-                paste("La estación no mide", toupper(input$Pollutant_y)))
+    shiny::need(input$Pollutant_x %in% names(df), paste("La estación no mide", input$Pollutant_x)),
+    shiny::need(input$Pollutant_y %in% names(df), paste("La estación no mide", input$Pollutant_y))
   )
+  
+  # Intentar graficar
   tryCatch({
-    ggplot(
-      df,
-      aes_string(
-        x = input$Pollutant_x,
-        y = input$Pollutant_y
-      )
-    ) +
-      geom_point(alpha = 0.4, color = "#3B0084") +
-      #geom_smooth(method = "lm", se = FALSE, color = "black") + #Lianea de tendencia lineal
-      theme_minimal(base_size = 14) +
-      labs(
-        x = toupper(input$Pollutant_x),
-        y = toupper(input$Pollutant_y),
-        title = paste("Diagrama de Dispersión - Estación", input$station_scatter),
-        subtitle = "Relación estadística entre contaminantes seleccionados"
-      )
+    # Usamos el dataframe filtrado
+    resultado<- plot_scatter(df,input$Pollutant_x, input$Pollutant_y)
+    v_res_scatter_objeto(resultado)
+    return (resultado)
   }, error = function(e){
-    shiny::validate(
-      "Error de graficación: Datos insuficientes o con demasiados valores NA."
-    )
-    
+    v_res_scatter_objeto(NULL)
+    validate(paste("Error de graficación:", e$message))
   })
   
 })
+
+#Analisis IA
+observeEvent(input$btn_analizar_scatter,{
+  req(datos_scatter())
+  df_completo <- datos_scatter()
+  
+  p_x <- isolate(input$Pollutant_x)
+  p_y <- isolate(input$Pollutant_y)
+  s_ia <- isolate(input$station_scatter)
+  
+  df_subset<- df_completo[, c(p_x,p_y), drop=FALSE]
+  df_subset <- na.omit(df_subset)
+  
+  #Validamos que hayan datos
+  if(nrow(df_subset)<5){
+    texto_analisis_ia_scatter("No hay suficientes datos válidos para calcular la relación entre estos contaminantes")
+    return()
+  }
+  texto_analisis_ia_scatter("Analizando correlacion y tendencias ...")
+  
+  datos_json<- jsonlite::toJSON(df_subset)
+  
+  tryCatch({
+    api_key <- Sys.getenv("GEMINI_API_KEY")
+    url_ia <- "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
+    
+    cuerpo <- list(
+      contents = list(
+        list(parts=list(list(text=paste(
+          "Eres un Especialista en Calidad del Aire y Análisis Estadístico de la Red de Monitoreo (RMCAB) en Bogotá. ",
+          "Tu objetivo es interpretar un Diagrama de Dispersión (Scatter Plot) generado para la estación '", s_ia, "'.\n\n",
+          
+          "VARIABLES DEL GRÁFICO:\n",
+          "- Eje X (Variable Independiente): ", p_x, "\n",
+          "- Eje Y (Variable Dependiente): ", p_y, "\n\n",
+          
+          "DATOS DEL SCATTER PLOT (JSON):\n", datos_json, "\n\n",
+          
+          "TAREAS DE ANÁLISIS:\n",
+          "1. CORRELACIÓN: Determina la fuerza y dirección de la relación (positiva, negativa, nula). ¿Es una relación lineal o existen clusters (agrupamientos)?\n",
+          "2. FENOMENOLOGÍA: Explica si estos dos contaminantes comparten una fuente de emisión común en Bogotá (ej. tráfico vehicular si es NO2/PM2.5, o resuspensión si es PM10). ",
+          "Considera si uno es un contaminante primario y el otro secundario.\n",
+          "3. VALORES ATÍPICOS: Identifica si hay puntos que se alejan significativamente de la tendencia y qué podrían indicar.\n",
+          "4. CONCLUSIÓN TÉCNICA: Resume el estado de la calidad del aire para este par de variables en 3 puntos clave.\n\n",
+          
+          "REGLAS DE FORMATO: Usa Markdown, negritas para términos técnicos y un tono profesional y científico, sin embargo, que una persona sin muchos conocimientos texnicos pueda entender."
+        ))))
+      )
+    )
+    resp <- httr2::request(url_ia) %>%
+      httr2::req_url_query(key=api_key) %>%
+      httr2::req_body_json(cuerpo) %>%
+      httr2::req_method("POST") %>%
+      httr2::req_perform()
+    
+    resultado <- httr2::resp_body_json(resp)
+    if(!is.null(resultado$candidates)){
+      texto_final <- resultado$candidates[[1]]$content$parts[[1]]$text
+      texto_analisis_ia_scatter(texto_final)
+    } else{
+      texto_analisis_ia_scatter("La IA no pudo generar uan respuesta. Intenta de nuevo")
+    }
+    
+  }, error= function(e){
+      texto_analisis_ia_scatter(paste("Error en la conexión", e$message))
+    
+  })
+  
+  })
+output$analisis_ia_scatter_out <- renderUI({
+  if(texto_analisis_ia_scatter() == ""){
+    p("Haz clic en 'Analizar Relación' para obtener una interpretación experta",
+      style="color:#888; font-style:italic; padding:10px")
+  } else{
+    div(
+      class="analisis_container",
+      style="background-color:#f0f7ff; border-left:4px solid #2E8B57; padding:15px; border-radius:4px",
+      markdown(texto_analisis_ia_scatter())
+    )
+  }
+  
+})
+
+
+
+
 }
 
 shinyApp(ui, server)
