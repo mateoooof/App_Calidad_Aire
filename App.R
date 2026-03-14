@@ -10,8 +10,9 @@ library(magick)
 library(httr2)
 library(jsonlite)
 library(dplyr)
-
-
+library(lubridate)
+library(osmdata)
+library(sf)
 
 source("Scripts/data_download_processing.R")
 source("Scripts/plots.R")
@@ -261,9 +262,9 @@ ui <- page_fillable(
                              card_header("Evolución Espacial", class = "bg-warning text-dark", style="font-size:1.2rem"),
                              card_body(
                                div(style = "min-height: 100px;",
-                                   p(strong("¿Cómo se desplaza la nube de contaminación sobre la ciudad durante el día?"), 
+                                   p(strong("¿Como ha cambiado la contaminación con el paso del tiempo?"), 
                                      style = "font-size: 1rem; color: #856404; margin-bottom: 5px;text-align:center"),
-                                   p("Genera un mapa animado de 24 horas para visualizar la dinámica de dispersión horaria.", 
+                                   p("Genera un mapa animado donde a partir de colores y tamaños se logra identificar el cambio de los niveles de contaminación de la ciudad", 
                                      style = "font-size: 1rem; color: #666;")
                                ),
                                div(class = "text-center my-3",
@@ -867,17 +868,11 @@ output$analisis_ia_out_rp <- renderUI({
 })
 
 
-
-
-
-
-
 #----LOGICA PAGINA: Correlacion de Contaminantes----
 
 datos_corplot <- reactiveVal(NULL)
 esta_cargando_corplot <- reactiveVal(FALSE)
 
-#Variables IA
 #Variables IA
 v_res_cor_objeto <- reactiveVal(NULL) #Guarda el objeto de openar
 texto_analisis_ia_cor <- reactiveVal("") #Guarda la respuesta
@@ -938,41 +933,57 @@ observeEvent(input$generar_corplot, {
 
 # Renderizar la gráfica
 output$plot_corplot <- renderPlot({
-  input$generar_corplot
-  
+
   df <- datos_corplot()
-  
   if(is.null(df)) return(NULL)
   
-  s_sel <- isolate(input$station_corplot)
+  # Verificar dataframe válido
+  if(!is.data.frame(df) || nrow(df) < 5){
+    plot.new()
+    text(0.5, 0.5,"No hay suficientes datos para calcular correlación.",cex = 1.2)
+    return()
+  }
+  # Variables numéricas
+  variables_permitidas <- c("pm10","pm2.5","no","no2","nox","so2","co","ozono","temperatura","hr") #Contaminantes + humedad + temperatura
   
-  # 1. Validaciones de integridad
-  shiny::validate(
-    shiny::need(is.data.frame(df), "Los datos descargados no son válidos."),
-    shiny::need(nrow(df) > 0, "No hay registros para las fechas seleccionadas.")
-  )
+  df_num <- df[, intersect(variables_permitidas, names(df)), drop = FALSE]
   
-  # 2. FILTRO DE CONTAMINANTES: Aquí quitamos ws, wd, etc.
-  lista_blanca <- c("pm10", "pm25", "co", "no", "no2", "nox", "so2", "ozono")
-  df_contaminantes <- df[, names(df) %in% lista_blanca, drop = FALSE]
+  if(ncol(df_num) < 2){
+    plot.new()
+    text(0.5, 0.5,"No hay suficientes variables numéricas.",cex = 1.2)
+    return()
+  }
   
-  # 3. Validación de columnas suficientes para correlación
-  shiny::validate(
-    shiny::need(ncol(df_contaminantes) >= 2, 
-         "Esta estación no tiene suficientes contaminantes diferentes para establecer una correlación.")
-  )
+  # Quitar columnas con pocos datos
+  df_num <- df_num[, colSums(!is.na(df_num)) > 5, drop = FALSE]
   
-  # Intentar graficar
-  tryCatch({
-    # Usamos el dataframe filtrado
-    resultado<- plot_correlation(data = df_contaminantes)
-    v_res_cor_objeto(resultado)
-    resultado
-  }, error = function(e){
-    validate("Error de graficación: Los datos actuales no permiten generar la matriz (posibles NAs masivos).")
-  })
+  # Quitar columnas constantes
+  df_num <- df_num[, sapply(df_num, function(x) sd(x, na.rm = TRUE) > 0), drop = FALSE]
+  
+  if(ncol(df_num) < 2){
+    plot.new()
+    text(0.5, 0.5,"Las variables no presentan variabilidad suficiente.",cex = 1.2)
+    return()
+  }
+  
+  # Calcular matriz
+  
+  matriz_cor <- cor(df_num, use = "pairwise.complete.obs")
+  
+  # Verificar matriz válida
+  if(any(is.na(matriz_cor)) || ncol(matriz_cor) < 2){
+    plot.new()
+    text(0.5, 0.5,"No fue posible construir una matriz de correlación válida.",cex = 1.2)
+    return()
+  }
+  
+  # Graficar
+  par(bg = "white", mar = c(1,1,3,1))
+  
+  corrplot::corrplot(matriz_cor,method = "ellipse",type = "full",order = "hclust",addCoef.col = "black",number.cex = 0.7,tl.col = "black",tl.cex = 0.9,tl.srt = 45,col = colorRampPalette(c("#83D0A4", "#FAFFB5","#A32B50" ))(200))
+  
+  title(main = paste("Matriz de Correlación - Estación", input$station_corplot),line = 1)
 })
-
 #Analisis IA
 observeEvent(input$btn_analizar_cor, {
   req(v_res_cor_objeto()) 
@@ -1064,58 +1075,137 @@ output$analisis_ia_out_cor<- renderUI({
   }
 })
 
+#------------------- PAGINA: MAPA GIF -------------------------------------------
+datos_gif_path <- reactiveVal(NULL)
 
+# Botón dinámico
+output$control_gif_ui <- renderUI({
+  actionButton( "generar_gif", "Generar GIF",
+    icon = icon("film"),
+    style="background-color:#FBC02D; color:black; font-weight:700; width:100%"
+  )
+})
 
+observeEvent(input$generar_gif, {
+  
+  withProgress(message = "Construyendo mapa histórico...", value = 0, {
+    
+    incProgress(0.2, detail = "Descargando datos de todas las estaciones...")
+    
+    # Rango de fechas: enero 2025 hasta ayer,
+    fecha_inicio <- as.Date("2025-01-01")
+    fecha_fin    <- Sys.Date() - 1
+    fechas       <- seq(fecha_inicio, fecha_fin, by = "month")
+    
+    datos_lista <- lapply(fechas, function(f) {
+      tryCatch({
+        df <- get_data_for_gif(  fecha = f,  contaminante_sel = "pm2.5")
+        if (is.null(df) || nrow(df) == 0) return(NULL)
+        
+        # Filtrar estaciones problemáticas
+        df <- df[!df$site %in% c("Bosa", "Usme"), ]
+        if (nrow(df) == 0) return(NULL)
+        
+        # Unir coordenadas 
+        df <- df %>%
+          left_join( rmcab_aqs[, c("aqs", "lat", "lon")], by = c("site" = "aqs")
+          ) %>%
+          mutate( fecha   = as.Date(f), periodo = format(f, "%Y-%m")   )
+        df
+      }, error = function(e) {
+        message("Error en fecha: ", f, " — ", e$message)
+        NULL
+      })
+    })
+    
+    datos <- bind_rows(datos_lista)
+    
+    # Validar que existan datos
+    if (is.null(datos) || nrow(datos) == 0) {
+      showNotification(
+        "No se obtuvieron datos para ningún periodo. Intenta más tarde.",
+        type = "error",
+        duration = 10
+      )
+      return()
+    }
+    
+    incProgress(0.4, detail = "Calculando promedios mensuales...")
+    
+    datos_mensuales <- datos %>%
+      rename(iboca = `pm2.5`) %>%
+      filter(!is.na(iboca), !is.na(lat), !is.na(lon)) %>%
+      group_by(site, periodo, lat, lon) %>%
+      summarise(
+        valor = mean(iboca, na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    # Validar que haya datos después del resumen
+    if (nrow(datos_mensuales) == 0) {
+      showNotification(  "No hay datos válidos para generar el mapa animado.",  type = "warning",  duration = 10
+      )
+      return()
+    }
+    
+    incProgress(0.6, detail = "Creando mapa...")
+    
+    # Mapa base
+    bogota_osm <- osmdata::opq(bbox = c(-74.3, 4.45, -73.9, 4.85)) %>%
+      osmdata::add_osm_feature(key = "highway", 
+                               value = c("primary", "secondary")) %>%
+      osmdata::osmdata_sf()
+    
+    calles <- bogota_osm$osm_lines
+    
+    mapa <- ggplot() +
+      
+      geom_sf(  data  = calles,  color = "gray60",  size  = 0.3) +
+      geom_point(  data  = datos_mensuales,  aes(x = lon, y = lat, color = valor, size = valor),  alpha = 0.85) +
+      
+      scale_color_gradientn(
+        colours = c("#00E400","#FFFF00","#FF7E00","#FF0000","#8F3F97") # ordenados de bueno -> moderado -> Dañino -> muy dañino ->peligroso
+      ) +
+      scale_size_continuous(range = c(5, 20)) +
+      
+      labs(  title = "Evolución de la Calidad del Aire en Bogotá",  subtitle = "Periodo: {closest_state}",  color = "PM2.5",  size = "PM2.5"
+      ) +
+      
+      theme_minimal() +
+      theme( plot.title  = element_text(face = "bold", size = 14), plot.subtitle  = element_text(size = 11), legend.position = "right", axis.title  = element_blank()
+      ) +
+      
+      coord_sf(  xlim = c(-74.3, -73.9),  ylim = c(4.45,  4.85)
+      )
+    
+    incProgress(0.8, detail = "Generando animación... ")
+    
+    animacion <- mapa +
+      transition_states(  periodo,  transition_length = 0,  state_length = 2,  wrap = TRUE
+      ) + 
+      ease_aes("cubic-in-out") +
+      enter_fade(alpha=0.3) + exit_fade(alpha=0.3)
+    
+    gif <- animate(  animacion,  width  = 750,  height = 600,  fps = 50,  nframes = 100,  rewind = FALSE,  renderer = magick_renderer()
+    )
+    
+    path <- tempfile(fileext = ".gif")
+    magick::image_write(gif, path)
+    datos_gif_path(path)
+    
+  })
+})
 
-# PAGINA 4 - GIFT
-# datos_gif_path<- reactiveVal(NULL)
-# esta_cargando_gif <- reactiveVal(FALSE)
-# 
-# output$control_gif_ui <-renderUI({
-#   if(esta_cargando_gif()){
-#     div(style="padding:10px; background: #FFF9C4; border-radius:8px;",
-#     p("Renderizando frames...", style="font-weight:bold; color: #F57F17;"),
-#     textOutput("mensaje_carga_gif"))
-#   }else{
-#     actionButton("generar_gif", "Generar Gif Animado", icon = icon("film"),
-#     style="background-color:#FBC02D; color:black; font-weight:700; width:100%")
-#   }
-# })
-# 
-# observeEvent(input$generar_gif, {
-#   req(input$fecha_gif, input$pollutant_gif)
-#   esta_cargando_gif(TRUE)
-#   
-#   withProgress(message = "Preparando mapa animado...", value = 0, {
-#     
-#     # 1. Descargamos los datos usando tu lógica de resumen adaptada
-#     df_gif <- get_data_for_gif(
-#       fecha = input$fecha_gif, 
-#       contaminante_sel = input$pollutant_gif,
-#       update = setProgress # Esto vincula la barra de progreso de Shiny
-#     )
-#     
-#     if(is.null(df_gif) || nrow(df_gif) == 0) {
-#       showNotification("No hay datos suficientes para generar el GIF.", type = "warning")
-#       esta_cargando_gif(FALSE)
-#       return()
-#     }
-#     
-#     # 2. Generamos el GIF (usando la función make_pollution_gif que ya ajustamos)
-#     setProgress(value = 0.9, detail = "Renderizando cuadros finales...")
-#     path <- make_pollution_gif(df_gif, input$pollutant_gif)
-#     
-#     datos_gif_path(path)
-#   })
-#   esta_cargando_gif(FALSE)
-# })
-# 
-# output$gif_plot_output <- renderImage({
-#   path <- req(datos_gif_path())
-#   list(src = path, contentType = "image/gif", width = "100%", height = "auto")
-# }, deleteFile = FALSE)
+output$gif_plot_output <- renderImage({
+  
+  path <- req(datos_gif_path())
+  
+  list( src = path,  contentType = "image/gif",  width= "100%" )
+  
+}, deleteFile = FALSE)
 
 #----LOGICA PAGINA: SCATTER -------------------
+
 datos_scatter <- reactiveVal(NULL)
 esta_cargando_scatter <- reactiveVal(FALSE)
 
@@ -1187,6 +1277,7 @@ output$plot_scatter <- renderPlot({
     resultado<- plot_scatter(df,input$Pollutant_x, input$Pollutant_y)
     v_res_scatter_objeto(resultado)
     return (resultado)
+    
   }, error = function(e){
     v_res_scatter_objeto(NULL)
     validate(paste("Error de graficación:", e$message))
@@ -1282,4 +1373,4 @@ output$analisis_ia_scatter_out <- renderUI({
 }
 
 shinyApp(ui, server)
-
+  

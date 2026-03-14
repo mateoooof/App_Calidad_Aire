@@ -7,15 +7,6 @@ ui_gif_maker <- nav_panel_hidden(
       title = "Configurador de GIF",
       bg = "#FFFDE7", 
       
-      # Selector de fecha única (para generar las 24 horas de ese día)
-      dateInput("fecha_gif", "Selecciona el día:", 
-                value = Sys.Date() - 1, 
-                language = "es",
-                max = Sys.Date() - 1),
-      
-      # El selector de contaminantes se llena desde el server
-      selectInput("pollutant_gif", "Contaminante:", choices = NULL),
-      
       hr(),
       # Botón dinámico que cambiará a mensaje de carga
       div(class="text-center mb-3",
@@ -42,3 +33,4 @@ ui_gif_maker <- nav_panel_hidden(
     )
   )
 )
+

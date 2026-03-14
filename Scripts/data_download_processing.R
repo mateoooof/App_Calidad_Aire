@@ -109,7 +109,8 @@ get_rmcab_summary <- function(update = NULL) {
 
 get_data_for_gif <- function(fecha, contaminante_sel, update = NULL) {
   # Usamos la lista de estaciones de la librería oficial
-  estaciones_lista <- bogotAIR::rmcab_aqs$aqs
+  estaciones_sin_datos <- c('Bosa', 'Usme')
+  estaciones_lista <- bogotAIR::rmcab_aqs$aqs[!bogotAIR::rmcab_aqs$aqs %in% estaciones_sin_datos]
   all_data <- list()
   
   n <- length(estaciones_lista)
@@ -135,7 +136,7 @@ get_data_for_gif <- function(fecha, contaminante_sel, update = NULL) {
       if(contaminante_sel %in% names(temp)) {
         # Guardamos: Estación, Fecha/Hora y el Valor del contaminante
         all_data[[est]] <- temp %>% 
-          select(station, date, all_of(contaminante_sel)) %>%
+          select(site, date, all_of(contaminante_sel)) %>%
           mutate(across(all_of(contaminante_sel), ~as.numeric(as.character(.x))))
       }
     }
