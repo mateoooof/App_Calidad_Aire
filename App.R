@@ -21,6 +21,7 @@ source("Paginas/rose_pollution.R")
 source("Paginas/cor_plot.R")
 source("Paginas/gif_maker.R")
 source("Paginas/Scatter_plot.R")
+source("Paginas/teoria.R")
 
 
 # Dataset de Estaciones (Coordenadas aproximadas RMCAB)
@@ -40,17 +41,34 @@ my_theme <- bs_theme(
 #--- UI ---
 
 ui <- page_fillable(
+  
+  #Para que al darle click a los botones salga arriba de la pagina, actualiza el scroll
+  tags$script("
+  Shiny.addCustomMessageHandler('scroll-top', function(message) {
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  });
+"),
   theme = my_theme,
   
   # BARRA SUPERIOR
   div(class = "d-flex justify-content-between align-items-center p-3", 
       style = "background-color: #E0F2F1; border-bottom: 2px solid #B2DFDB;",
+      div(class="d-flex align-items-center gap-3",
       h3("Calidad de Aire Bogotá", style = "margin: 0; color: #2E8B57; font-weight: 700;"),
+      actionLink("volver_teoria", "Ver Teoría",
+                 icon= icon("book-open"),
+                 style="color #4682b4;text-decoration:none; font-weight:600"),
+      actionLink("empezar_app2", "Ver Analisís",
+                 icon= icon("rocket"),
+                 style="color #4682b4;text-decoration:none; font-weight:600")),
+      
       tags$img(src = "Logo Unal Sin Fondo.png", height = "45px")
   ),
   
   navset_hidden(
     id = "paginas_app",
+    
+    nav_panel_hidden("teoria", ui_teoria),
     
     # --- PÁGINA 1: INICIO ---
     nav_panel_hidden("inicio",
@@ -304,6 +322,15 @@ ui <- page_fillable(
                              )
                            )
                            
+                         ),
+                         br(),
+                         
+                         # --- BOTÓN DE ENTRADA ---
+                         div(class = "text-center my-5",
+                             actionButton("volver_teoria2", "Ver teoria", 
+                                          class = "btn-success btn-lg", 
+                                          style = "padding: 20px 80px; font-weight: 800; border-radius: 10px; font-size: 1.5rem; transition: 0.3s;",
+                                          icon = icon("book-open"))
                          )
                      )
     ),
@@ -348,15 +375,28 @@ server <- function (input, output, session){
 
   # --- NAVEGACIÓN ---
   
+  observeEvent(input$empezar_app,{nav_select("paginas_app","inicio")
+    session$sendCustomMessage("scroll-top", list())})
+  observeEvent(input$empezar_app2,{nav_select("paginas_app","inicio")
+    session$sendCustomMessage("scroll-top", list())})
+  
+  
+  
   # El ID "paginas_app" es el del navset_hidden. 
   # El segundo argumento es el valor del nav_panel_hidden definido arriba.
+  observeEvent(input$ir_analisis,{nav_select("paginas_app","pagina_analisis")})
+  
   observeEvent(input$ir_analisis, { nav_select("paginas_app", "pagina_analisis") })
   observeEvent(input$ir_rosa, { nav_select("paginas_app", "pagina_rosa") })
   observeEvent(input$ir_cor, { nav_select("paginas_app", "pagina_cor") })
   observeEvent(input$ir_gif, { nav_select("paginas_app", "pagina_gif") })
   observeEvent(input$ir_scatter,{nav_select("paginas_app", "pagina_scatter")})
   
+  
   # Lógica para botones de "Volver" 
+  observeEvent(input$volver_teoria,{nav_select("paginas_app","teoria")})
+  observeEvent(input$volver_teoria2,{nav_select("paginas_app","teoria")})
+  
   observeEvent(input$volver_inicio, { nav_select("paginas_app", "inicio") })
   observeEvent(input$volver_inicio2, { nav_select("paginas_app", "inicio") })
   observeEvent(input$volver_inicio3, { nav_select("paginas_app", "inicio") })
